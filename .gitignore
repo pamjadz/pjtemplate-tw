@@ -1,6 +1,6 @@
 # dependencies
 /node_modules
-package.json
+package-lock.json
 
 # production
 assets/css/*.css
@@ -17,6 +17,4 @@ yarn-debug.log*
 yarn-error.log*
 
 #css
-.vscode/sftp.json
-assets/tstyle.css
-assets/ptstyle.css
+assets/stylesheet.css
