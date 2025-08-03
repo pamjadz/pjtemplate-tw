@@ -2,9 +2,6 @@
 /node_modules
 package-lock.json
 
-# production
-assets/css/*.css
-
 # misc
 .DS_Store
 .DS_Store?

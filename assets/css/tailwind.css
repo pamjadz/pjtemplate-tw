@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@theme {
+	--font-sans: 'IRANSans';
+	--color-lagoon: oklch(0.72 0.11 221.19);
+}
+
+@layer components {
+}
