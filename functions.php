@@ -188,6 +188,7 @@ add_action( 'after_setup_theme', function(){
 	//includes
 	foreach (glob(THEMEDIR.'inc/*.php') as $file) require_once $file;
 
+
 	//Arvand Panel Style
 	add_action( 'admin_enqueue_scripts',function(){
 		wp_enqueue_style( 'arvandpanel', THEMEURL . 'assets/css/arvand-admin.css', false, '1.0.0' );
@@ -205,52 +206,12 @@ add_action( 'after_setup_theme', function(){
 	//Custom Contact Form
 	add_shortcode( 'arvand_contact_form', function( $atts ) {
 		$atts = shortcode_atts(['to' => get_option('admin_email')], $atts);
-		$notice = '';
-
-		if( isset( $_POST['cfsubmit'] ) ) {
-			try {
-				$name		= isset( $_POST['cfName'] ) ? sanitize_text_field( $_POST['cfName'] ) : '';
-				$phone		= isset( $_POST['cfPhone'] ) ? sanitize_text_field( $_POST['cfPhone'] ) : '';
-				$subject	= isset( $_POST['cfSubject'] ) ? sanitize_text_field( $_POST['cfSubject'] ) : '';
-				$email		= isset( $_POST['cfEmail'] ) ? sanitize_email( $_POST['cfEmail'] ) : '';
-				$message	= isset( $_POST['cfMessage'] ) ? sanitize_textarea_field( $_POST['cfMessage'] ) : '';
-				if( ! wp_verify_nonce( $_POST['cfsubmit'], 'cfsubmit' ) || ( isset($_POST['cfSecux']) && ! empty( $_POST['cfSecux']) ) ) {
-					throw new Exception( 'به دلایل امنیتی ارسال پیام امکان پذیر نیست!' );
-				}
-				if( empty($name) || empty($phone)|| empty($subject) || empty($subject) || empty($message) ){
-					throw new Exception( 'فیلد های ضروری را تکمیل کنید!' );
-				}
-
-				if( ! empty($email) && ! is_email( $email ) ){
-					throw new Exception( 'ایمیل وارد شده صحیح نمی‌باشد' );
-				}
-				$headers = ['Content-Type: text/html; charset=UTF-8'];
-				if( $email ) {
-					$headers[] = sprintf('Reply-To: %s <%s>', $name, $email);
-				}
-
-				ob_start();
-				get_template_part( 'parts/contactus', 'email' );
-				$mailbody = ob_get_clean();
-				$mailbody = str_replace('{{title}}', $subject, $mailbody);
-				$message = sprintf('<p>فرستنده: <strong>%s</strong></p><p>شماره تماس: <strong>%s</strong></p> %s', $name, $phone, wpautop($message) );
-				$mailbody = str_replace('{{content}}', $message, $mailbody);
-				$mailbody = str_replace('{{footer}}', sprintf('<p>در تاریخ <span dir="ltr">%s</span> با شناسه <span dir="ltr">%s</span></p>', current_time('Y-m-d H:i'), 'IP' ), $mailbody);
-				$sent = wp_mail( $atts['to'], $subject, $mailbody, $headers );
-				if( $sent ){
-					$notice = sprintf('<p class="text-green-700" role="alert">%s</p>', 'پیام شما باموفقیت ارسال شد.');
-				} else {
-					throw new Exception( 'ارسال پیام، شکست خورد! اشکال از سمت سایت می‌باشد' );
-				}
-			} catch (Exception $e) {
-				$notice = sprintf('<p class="text-red-600" role="alert">%s</p>', $e->getMessage() );
-			}
-		}
-
 		ob_start();
-		get_template_part( 'parts/contactus', 'form', ['notice' => $notice]);
+		get_template_part( 'parts/contactus', 'form' );
 		return ob_get_clean();
 	});
+	add_action('wp_ajax_arvand_contact_form', 'arvand_contact_form_cb');
+	add_action('wp_ajax_nopriv_arvand_contact_form', 'arvand_contact_form_cb');
 
 	//Plugins Compatibility
 	add_theme_support( 'rank-math-breadcrumbs' );
@@ -259,20 +220,6 @@ add_action( 'after_setup_theme', function(){
 	if( function_exists('wpp_add_our_dashboard_primary_widget') ){
 		remove_action( 'admin_init', 'wpp_add_our_dashboard_primary_widget', 1 );
 	}
-
-	//Arvand Panel Style
-	add_action( 'admin_enqueue_scripts',function(){
-		wp_enqueue_style( 'arvandpanel', THEMEURL . 'assets/css/arvand-admin.css', false, '1.0.0' );
-	});
-	add_action( 'login_enqueue_scripts', function(){
-		wp_enqueue_style( 'arvandpanel', THEMEURL . 'assets/css/arvand-admin.css', false, '1.0.0' );
-	});
-	add_filter( 'login_headerurl', function() {
-		return home_url();
-	});
-	add_filter('admin_footer_text', function() {
-		return 'توسعه داده شده توسط <a href="https://arvandec.com" target="_blank">آژانس دیجیتال مارکتینگ آروند</a> بر بستر <a href="https://wordpress.org" target="_blank">وردپرس</a>.';
-	});
 
 });
 
@@ -630,4 +577,53 @@ function the_logo( $size = [] ){
 		$aria_current = is_front_page() && ! is_paged() ? ' aria-current="page"' : '';
 		printf('<a href="%1$s" class="custom-logo-link" rel="home"%2$s>%3$s</a>', esc_url( home_url( '/' ) ), $aria_current, $logo);
 	}
+}
+
+function arvand_contact_form_cb() {
+	$form_data = isset( $_POST['form_data'] ) ? json_decode( stripslashes( $_POST['form_data'] ), true) : [];
+	$output = [ 'sent' => false, 'message' => null ];
+	if( isset( $form_data['cfsubmit'] ) ) {
+		try {
+			$name		= isset( $form_data['cfName'] ) ? sanitize_text_field( $form_data['cfName'] ) : '';
+			$phone		= isset( $form_data['cfPhone'] ) ? sanitize_text_field( $form_data['cfPhone'] ) : '';
+			$subject	= isset( $form_data['cfSubject'] ) ? sanitize_text_field( $form_data['cfSubject'] ) : '';
+			$email		= isset( $form_data['cfEmail'] ) ? sanitize_email( $form_data['cfEmail'] ) : '';
+			$message	= isset( $form_data['cfMessage'] ) ? sanitize_textarea_field( $form_data['cfMessage'] ) : '';
+
+			if( ! wp_verify_nonce( $form_data['cfsubmit'], 'cfsubmit' ) || ( isset($form_data['cfSecux']) && ! empty( $form_data['cfSecux']) ) ) {
+				throw new Exception( 'به دلایل امنیتی ارسال پیام امکان پذیر نیست!' );
+			}
+
+			if( empty( $name ) || empty( $phone )|| empty( $subject ) || empty( $message ) ){
+				throw new Exception( 'فیلد های ضروری را تکمیل کنید!' );
+			}
+
+			if( ! empty( $email ) && ! is_email( $email ) ) {
+				throw new Exception( 'ایمیل وارد شده صحیح نمی‌باشد' );
+			}
+
+			$headers = ['Content-Type: text/html; charset=UTF-8'];
+			if( $email ) {
+				$headers[] = sprintf('Reply-To: %s <%s>', $name, $email);
+			}
+
+			ob_start();
+			get_template_part( 'parts/contactus', 'email' );
+			$mailbody = ob_get_clean();
+			$mailbody = str_replace('{{title}}', $subject, $mailbody);
+			$message = sprintf('<p>فرستنده: <strong>%s</strong></p><p>شماره تماس: <strong>%s</strong></p> %s', $name, $phone, wpautop($message) );
+			$mailbody = str_replace('{{content}}', $message, $mailbody);
+			$mailbody = str_replace('{{footer}}', sprintf('<p>در تاریخ <span dir="ltr">%s</span> با شناسه <span dir="ltr">%s</span></p>', current_time('Y-m-d H:i'), 'IP' ), $mailbody);
+			$sent = wp_mail( $atts['to'], $subject, $mailbody, $headers );
+			if( $sent ){
+				$output['sent'] = true;
+				$output['message'] = sprintf('<p class="text-green-700" role="alert">%s</p>', 'پیام شما باموفقیت ارسال شد.');
+			} else {
+				throw new Exception( 'ارسال پیام، شکست خورد! اشکال از سمت سایت می‌باشد' );
+			}
+		} catch (Exception $e) {
+			$output['message'] = sprintf('<p class="text-red-600" role="alert">%s</p>', $e->getMessage() );
+		}
+	}
+	wp_send_json( $output );
 }
