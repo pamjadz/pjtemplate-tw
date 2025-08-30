@@ -10,7 +10,7 @@
 
 defined('ABSPATH') || exit;
 
-get_template_part('parts/offcanvas', 'mmenu');
+// get_template_part('parts/offcanvas', 'mmenu');
 
 if( isset( $args['only_meta'] ) && TRUE === $args['only_meta'] ){
 	wp_footer();
@@ -20,7 +20,7 @@ if( isset( $args['only_meta'] ) && TRUE === $args['only_meta'] ){
 ?>
 
 <footer id="siteFoot">
-	Lorem ipsum dolor sit amet consectetur adipisicing elit. Optio laborum ratione iusto velit esse quos porro molestias magni unde, non aliquid veritatis, vitae explicabo ducimus dignissimos, assumenda facere quo? Numquam.
+	
 </footer>
 
 <?php wp_footer(); ?>

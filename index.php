@@ -12,6 +12,8 @@
 
 defined('ABSPATH') || exit;
 
+
+wp_enqueue_script('fullcalendar');
 get_header();
 ?>
 

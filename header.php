@@ -28,5 +28,6 @@ defined('ABSPATH') || exit;
 <body <?php body_class(); ?>>
 <?php
 wp_body_open();
+
 if( isset($args['only_meta']) && TRUE === $args['only_meta'] ) return;
 ?>

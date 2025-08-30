@@ -25,16 +25,26 @@ const themejs = document.getElementById('themejs'), ajaxURL = themejs.dataset.aj
 // });
 
 
-//Splidejs
-// if( typeof Splide !== 'undefined' && document.querySelector('.splide') ){
-// 	document.addEventListener('DOMContentLoaded', function(){
-// 		const splides = document.querySelectorAll( '.splide' );
-// 		for ( var i = 0; i < splides.length; i++ ) {
-// 			if( typeof( splides[i].dataset.splide ) === "undefined" || splides[i].dataset.splide === null ) return false;
-// 			new Splide( splides[i] ).mount();
-// 		}
-// 	});
-// }
+document.addEventListener('DOMContentLoaded', function(){
+	if( typeof Swiper !== 'undefined' ){
+		const swiper_el = document.querySelectorAll( '.swiper' );
+		swiper_el.forEach((el) => {
+			if( el.dataset.swiper ){
+				let options = JSON.parse( el.dataset.swiper );
+				let paginations = {
+					pagination: {
+						el: '.swiper-pagination'
+					},
+					navigation: {
+						nextEl: '.swiper-button-next',
+						prevEl: '.swiper-button-prev'
+					}
+				}
+				new Swiper(el, Object.assign(paginations, options));
+			}
+		});
+	}
+});
 
 //Woocommerce Notices
 // document.addEventListener('DOMContentLoaded', function() {
@@ -60,6 +70,33 @@ const themejs = document.getElementById('themejs'), ajaxURL = themejs.dataset.aj
 
 if( typeof jQuery !== 'undefined' ){
 	jQuery(document).ready(function($) {
+
+		$(document).on('click', '#book-appointment-selector [data-times]', function(){
+			const times = $(this).data('times');
+			$(this).addClass('active').siblings().removeClass('active');
+
+			if( times && times.length !== 0 ){
+				let output = '<div class="flex flex-wrap justify-center items-start gap-3">';
+				times.forEach( (datetime) => {
+					const time = datetime.split('|')[1];
+					output += `<label class="btn p-2 border-green-500 text-green-500 hover:bg-green-50 has-checked:bg-green-500 has-checked:text-white"><input type="radio" class="hidden" name="datetime_book" value="${datetime}" /> ${time}</label>`;
+				});
+				output += '</div>';				
+				$('.appointments_available').html( output );
+			} else {
+				$('.appointments_available').html('Mamad');
+			}
+		});
+
+		$(document).on('change', '#book-appointment-selector', function(e){
+			e.preventDefault();
+			if( $(this).find('[name="user_id"]').val() == 0 ){
+				alert('Ehraz Hoviat');
+			} else {
+				alert('Checkout & Pay');
+				$(this).submit();
+			}
+		});
 
 		$(document).on('click', '.btn-collapse', function (e) {
 			e.preventDefault();

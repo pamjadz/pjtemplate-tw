@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
+@font-face {
+	font-family: 'Vazirmatn';
+	src: url('media/vazirmatn-vf.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
 @theme {
-	--font-sans: 'IRANSans';
-	--color-lagoon: oklch(0.72 0.11 221.19);
+	--font-sans: 'Vazirmatn', sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+	--breakpoint-2xl: 90rem;
+}
+
+@theme static{
+	--color-card: white;
+	--color-primary: #7a0036;
+	--color-muted: var(--color-gray-600);
+	--color-foreground: #010101;
+	--color-background: var(--color-gray-50);
+
+	/* Elementor */
+	--e-global-color-primary: var(--color-primary);
 }
 
 @layer utilities {
@@ -63,15 +82,22 @@
 		}
 	}
 
-	.form-control{
+	/* .form-control{
 		@apply block w-full outline-none rounded-xl p-3 transition-all duration-300 ease-in-out border focus:border-primary;
-	}
+	} */
 
 	.btn{
 		@apply cursor-pointer z-[1] text-base/normal font-normal select-none outline-none rounded-md;
 		@apply text-center inline-block no-underline align-middle transition-all duration-150 ease-in-out py-3 px-4 border border-transparent;
-		&.btn-primary{
+		/* &.btn-primary{
 			@apply bg-primary text-white hover:bg-white hover:border-primary hover:text-primary;
-		}
+		} */
+	}
+}
+
+@layer base {
+	body{
+		@apply text-foreground bg-background text-sm lg:text-[15px];
+		font-feature-settings: "ss01";
 	}
 }
