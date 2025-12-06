@@ -19,9 +19,9 @@ defined('ABSPATH') || exit;
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="COLOR">
 <meta name="msapplication-navbutton-color" content="COLOR">
-<meta name="apple-mobile-web-app-status-bar-style" content="COLOR">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <?php wp_head(); ?>
 </head>
 
@@ -30,3 +30,5 @@ defined('ABSPATH') || exit;
 wp_body_open();
 if( isset($args['only_meta']) && TRUE === $args['only_meta'] ) return;
 ?>
+
+<header<?php header_class(); ?>></header>

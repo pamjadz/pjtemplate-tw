@@ -138,8 +138,8 @@ if( typeof jQuery !== 'undefined' ){
 				$target.toggleClass('hidden', isCurrentlyOpen);
 			}
 		});
-
-
+		
+		//Like Button
 		$(document).on('click', '[data-ilikeit] button', function(e){
 			e.preventDefault();
 			const $btn		= $(this);
@@ -165,7 +165,6 @@ if( typeof jQuery !== 'undefined' ){
 			$wrap.find('button').prop('disabled', false);
 		});
 
-	
 		//Scroll SPY
 		document.querySelectorAll('[data-scrollspy]').forEach(element => {
 			const wrapper = document.getElementById(element.dataset.scrollspy);
@@ -210,6 +209,20 @@ if( typeof jQuery !== 'undefined' ){
 						ticking = false;
 					});
 					ticking = true;
+				}
+			});
+		});
+
+		//ContactFrom
+		$(document).on('submit', 'form.arvand-contactform', function(e){
+			e.preventDefault();
+			const $FORM = $(this);
+			const params = $FORM.serializeArray();
+			$.post(ajaxURL, {action: 'arvand_contact_form', form_data: params}, function(resp){
+				if( resp.success ) {
+					// TODO: Display resp.message;
+				} else {
+					alert( resp.message );
 				}
 			});
 		});

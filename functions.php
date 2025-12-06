@@ -105,6 +105,7 @@ add_action( 'after_setup_theme', function(){
 
 	add_filter( 'body_class', function( $classes ) {
 		$classes = [];
+		//Classes HERE
 		if( is_404() ) $classes[] = 'error404';
 		$classes[] = ( is_rtl() ) ? 'rtl' : 'ltr';
 		if( is_admin_bar_showing() ) $classes[] = 'admin_bar';
@@ -112,7 +113,6 @@ add_action( 'after_setup_theme', function(){
 	}, 99 );
 
 	add_filter('header_class', function( $classes ) {
-		$classes = [];
 		return $classes;
 	});
 
@@ -282,7 +282,7 @@ add_action( 'after_setup_theme', function(){
 	add_action('wp_ajax_nopriv_arvand_contact_form', 'arvand_contact_form_cb');
 	function arvand_contact_form_cb() {
 		$form_data = isset( $_POST['form_data'] ) ? json_decode( stripslashes( $_POST['form_data'] ), true) : [];
-		$output = [ 'sent' => false, 'message' => null ];
+		$output = [ 'success' => false, 'message' => null ];
 		try {
 			$name		= sanitize_text_field( $form_data['arvcfName'] ?? '' );
 			$phone		= sanitize_text_field( $form_data['arvcfPhone'] ?? '' );
@@ -316,7 +316,7 @@ add_action( 'after_setup_theme', function(){
 			$mailbody = str_replace('{{footer}}', sprintf('<p>در تاریخ <span dir="ltr">%s</span> با شناسه <span dir="ltr">%s</span></p>', current_time('Y-m-d H:i'), get_user_ip() ), $mailbody);
 			$sent = wp_mail( $atts['to'], $subject, $mailbody, $headers );
 			if( $sent ){
-				$output['sent'] = true;
+				$output['success'] = true;
 				$output['message'] = 'پیام شما باموفقیت ارسال شد.';
 			} else {
 				throw new Exception( 'ارسال پیام، شکست خورد! اشکال از سمت سایت می‌باشد' );
@@ -343,8 +343,8 @@ function enqueue_splidejs(){
 	wp_enqueue_script('splide');
 }
 
-function header_class(){
-	$classes = array_unique( apply_filters( 'header_class', [] ) );
+function header_class( string|array $custom_class = '' ){
+	$classes = array_unique( apply_filters( 'header_class', (array) $custom_class ) );
 	if( ! empty( $classes ) ){
 		printf(' class="%s"', esc_attr( implode(' ', $classes) ) );
 	}
