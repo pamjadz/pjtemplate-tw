@@ -35,11 +35,7 @@ add_action( 'after_setup_theme', function(){
 	global $content_width;
 	$content_width = 1440;
 
-	add_action( 'wp_before_admin_bar_render', function(){
-		global $wp_admin_bar;
-		$wp_admin_bar->remove_menu('wp-logo');
-	}, 0 );
-
+	//Theme Supports
 	add_theme_support('title-tag');
 	// add_theme_support( 'align-wide' );
 	// add_theme_support( 'custom-units' );
@@ -47,23 +43,37 @@ add_action( 'after_setup_theme', function(){
 	add_theme_support( 'customize-selective-refresh-widgets' );
 	add_theme_support( 'html5', [ 'search-form', 'comment-form', 'comment-list', 'gallery', 'caption' ] );
 
-	//Enqueue scripts
-	remove_action( 'wp_head', 'rsd_link' );
-	remove_action( 'wp_head', 'wp_generator' );
+	add_action( 'wp_before_admin_bar_render', function(){
+		global $wp_admin_bar;
+		$wp_admin_bar->remove_menu('wp-logo');
+	}, 0 );
+
+	//wp_head Cleanup
+	remove_action('wp_head', 'wp_generator');
+	remove_action('wp_head', 'wlwmanifest_link');
+	remove_action('wp_head', 'rsd_link');
 	remove_action( 'wp_head', 'feed_links', 2 );
-	remove_action( 'wp_head', 'index_rel_link' );
-	remove_action( 'wp_head', 'wlwmanifest_link' );
 	remove_action( 'wp_head', 'feed_links_extra', 3 );
+	remove_action( 'wp_head', 'rest_output_link_wp_head' );
+	remove_action('template_redirect', 'rest_output_link_header', 11);
+
+	remove_action('wp_head', 'wp_oembed_add_discovery_links');
+	remove_action('wp_head', 'wp_oembed_add_host_js');
+
+	// remove_action('wp_head', 'rel_canonical');
+	remove_action( 'wp_head', 'index_rel_link' );
 	remove_action( 'wp_head', 'start_post_rel_link', 10, 0 );
 	remove_action( 'wp_head', 'parent_post_rel_link', 10, 0 );
-	remove_action( 'wp_head', 'print_emoji_detection_script', 7 ); 
 	remove_action( 'wp_head', 'adjacent_posts_rel_link', 10, 0 );
 	remove_action( 'wp_head', 'adjacent_posts_rel_link_wp_head', 10, 0 );
-	remove_action( 'wp_head', 'rest_output_link_wp_head' );
-	remove_action( 'wp_head', 'wp_oembed_add_discovery_links' );
-	add_filter( 'emoji_svg_url', '__return_false' );
-	remove_action( 'wp_print_styles', 'print_emoji_styles' );
-	remove_action( 'template_redirect', 'rest_output_link_header', 11 );
+
+	remove_action('wp_head', 'print_emoji_detection_script', 7);
+	remove_action('wp_print_styles', 'print_emoji_styles');
+	remove_filter('wp_mail', 'wp_staticize_emoji_for_email');
+	remove_filter('the_content_feed', 'wp_staticize_emoji');
+	remove_filter('comment_text_rss', 'wp_staticize_emoji');
+	add_filter('emoji_svg_url', '__return_false');
+	add_filter('wp_img_tag_add_auto_sizes', '__return_false');
 
 	//Disable Block Theme
 	add_theme_support( 'disable-custom-gradients' );
@@ -73,29 +83,25 @@ add_action( 'after_setup_theme', function(){
 	add_action( 'wp_enqueue_scripts', function() {
 		if( ! is_admin() ) {
 			wp_deregister_script( 'jquery' );
-			wp_enqueue_script( 'jquery', THEMEURL.'assets/js/vendor/jquery.min.js', [], '3.7.1', false );
-		}
-		wp_dequeue_style( 'wp-block-library' );
-		wp_dequeue_style( 'wp-block-library-theme' );
+			wp_enqueue_script( 'jquery', THEMEURL.'assets/libs/jquery.min.js', [], '3.7.1', [
+				'in_footer'	=> false,
+			]);
 
-		wp_register_style( 'splide', THEMEURL.'assets/libs/splide/splide.min.css', [], '4.1.3');
-		wp_register_script( 'splide', THEMEURL.'assets/libs/splide/splide.min.js', [], '4.1.3', true );
+			wp_dequeue_style('wp-block-library');
+			wp_dequeue_style('wp-block-library-theme');
+			wp_dequeue_style('global-styles');
+		}
+
+		wp_register_style( 'splide', THEMEURL.'assets/libs/splide/splide-core.min.css', [], '4.1.3');
+		wp_register_script( 'splide', THEMEURL.'assets/libs/splide/splide.min.js', [], '4.1.3', [
+			'strategy'	=> 'defer',
+			'in_footer'	=> true,
+		]);
 
 		if ( comments_open() ) wp_enqueue_script('comment-reply');
 
-		wp_enqueue_style( 'stylesheet', THEMEURL.'assets/css/stylesheet.css' );
+		wp_enqueue_style( 'stylesheet', THEMEURL.'assets/stylesheet.css' );
 	}, 99 );
-
-	add_action( 'wp_head', function(){
-		//TODO:Preload Font
-		// printf(
-		// 	'<link rel="prefetch" as="font" href="%s" type="%s" crossorigin="anonymous">',
-		// 	THEMEURL .'assets/media/FONTNAME.woff2',
-		// 	'font/woff2',
-		// );
-		echo PHP_EOL;
-		// printf('<link rel="manifest" href="%s">', THEMEURL.'manifest.webmanifest');
-	}, 2);
 
 	add_filter( 'body_class', function( $classes ) {
 		$classes = [];
@@ -112,14 +118,16 @@ add_action( 'after_setup_theme', function(){
 
 	add_action( 'wp_body_open', function(){
 		get_template_part('parts/icons');
+		echo PHP_EOL;
 	}, 99);
 
-	add_action( 'wp_footer', function(){
-		printf('<script id="themejs" src="%s" data-ajax="%s" defer></script>', THEMEURL. 'assets/js/script.min.js', admin_url('admin-ajax.php') );
+	add_action( 'wp_footer', function() {
+		printf('<script id="themejs" src="%s" data-ajax="%s" defer></script>', THEMEURL. 'assets/script.min.js', admin_url('admin-ajax.php') );
+		echo PHP_EOL;
 	}, 99);
 
 	register_nav_menus([
-		'primary'		=> __('Menu'),
+		'primary'	=> __('Menu'),
 	]);
 
 	//Archive and Loop
@@ -134,8 +142,8 @@ add_action( 'after_setup_theme', function(){
 			'name'			=> __('Sidebar'),
 			'before_widget'	=> '<section id="%1$s" class="widget %2$s">',
 			'after_widget'	=> '</section>',
-			'before_title'	=> '<div role="heading" aria-level="4" class="text-lg mb-4 widget-title">',
-			'after_title'	=> '</div>',
+			'before_title'	=> '<h4 class="widget-title">',
+			'after_title'	=> '</h4>',
 		]);
 	});
 	
@@ -158,8 +166,9 @@ add_action( 'after_setup_theme', function(){
 		$widget_obj	= $wp_registered_widgets[$widget_id];
 		$widget_opt	= get_option($widget_obj['callback'][0]->option_name);
 		$widget_num    = $widget_obj['params'][0]['number'];    
-		if ( isset($widget_opt[$widget_num]['classes']) && !empty($widget_opt[$widget_num]['classes']) )
+		if ( isset($widget_opt[$widget_num]['classes']) && !empty($widget_opt[$widget_num]['classes']) ) {
 			$params[0]['before_widget'] = preg_replace( '/class="/', "class=\"{$widget_opt[$widget_num]['classes']} ", $params[0]['before_widget'], 1 );
+		}
 		return $params;
 	});
 
@@ -194,10 +203,10 @@ add_action( 'after_setup_theme', function(){
 			}
 		}
 
-		$avatar_src = '<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 24 24"><path fill="#fafafa" d="M0 0h24v24H0z"/><path fill="#4D1120" d="M12 5.5c-1.7 0-3 1.3-3 3s1.3 3.5 3 3.5 3-2 3-3.6-1.3-2.9-3-2.9m4.4 13.2c1-.7 1.3-2 .6-3a6 6 0 0 0-5-2.7 6 6 0 0 0-5 2.6c-.7 1-.4 2.4.6 3A8 8 0 0 0 12 20a8 8 0 0 0 4.4-1.3"/></svg>';
+		$avatar_src = '<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 24 24"><path fill="#fafafa" d="M0 0h24v24H0z"/><path fill="#4d1120" d="M12 5.5c-1.7 0-3 1.3-3 3s1.3 3.5 3 3.5 3-2 3-3.6-1.3-2.9-3-2.9m4.4 13.2c1-.7 1.3-2 .6-3a6 6 0 0 0-5-2.7 6 6 0 0 0-5 2.6c-.7 1-.4 2.4.6 3A8 8 0 0 0 12 20a8 8 0 0 0 4.4-1.3"/></svg>';
 		$avatar_src = 'data:image/svg+xml;base64,'.base64_encode( $avatar_src );
-		
-		//TODO:: if want localavatar
+
+		//TODO: if want localavatar
 		// if( $user && get_user_meta( $user->ID, 'localavatar', true ) ){
 		// 	$custom_avatar_id = absint( get_user_meta( $user->ID, 'localavatar', true ) );
 		// 	if( $custom_avatar_id ) {
@@ -208,25 +217,24 @@ add_action( 'after_setup_theme', function(){
 		// 	}
 		// }
 
+		$class = $args['class'] ?? '';
 		$attrs = [
 			'src'           => $avatar_src,
 			'alt'           => $args['alt'] ?? '',
 			'width'         => $args['width'] ?? '',
 			'height'        => $args['height'] ?? '',
-			'class'         => is_array($args['class'] ?? '') ? $args['class'] : [$args['class'] ?? ''],
+			'class'         => is_array( $class ) ? $class : [ $class ],
 			'loading'       => $args['loading'] ?? 'lazy',
 			'fetchpriority' => $args['fetchpriority'] ?? '',
 			'decoding'      => $args['decoding'] ?? '',
 		];
 
 		$attrs['class'] = array_merge( ["avatar", "avatar-{$args['size']}"], $attrs['class']);
-		$attrs['class'] = implode(' ', array_filter($attrs['class']));
+		$attrs['class'] = implode(' ', array_filter( $attrs['class'] ));
 
-		if( isset($args['extra_attr']) && is_array($args['extra_attr']) ) {
-			$extra_attrs = array_filter($args['extra_attr'], function($value) {
-				return $value !== null;
-			});
-			$attrs = array_merge($attrs, $extra_attrs);
+		if( isset( $args['extra_attr'] ) && is_array( $args['extra_attr'] ) ) {
+			$extra_attrs = array_filter($args['extra_attr'], fn( $value ) => $value !== null);
+			$attrs = array_merge( $attrs, $extra_attrs );
 		}
 
 		$html_attrs = implode(' ', array_filter(array_map(
@@ -272,6 +280,52 @@ add_action( 'after_setup_theme', function(){
 	});
 	add_action('wp_ajax_arvand_contact_form', 'arvand_contact_form_cb');
 	add_action('wp_ajax_nopriv_arvand_contact_form', 'arvand_contact_form_cb');
+	function arvand_contact_form_cb() {
+		$form_data = isset( $_POST['form_data'] ) ? json_decode( stripslashes( $_POST['form_data'] ), true) : [];
+		$output = [ 'sent' => false, 'message' => null ];
+		try {
+			$name		= sanitize_text_field( $form_data['arvcfName'] ?? '' );
+			$phone		= sanitize_text_field( $form_data['arvcfPhone'] ?? '' );
+			$email		= sanitize_email( $form_data['arvcfEmail'] ?? '' );
+			$subject	= sanitize_text_field( $form_data['arvcfSubject'] ?? '' );
+			$message	= sanitize_textarea_field( $form_data['arvcfMessage'] ?? '' );
+			
+			if( ! wp_verify_nonce( $form_data['arvand-contactform'], 'arvand-contactform' ) || ( isset($form_data['arvcfSecux']) && ! empty( $form_data['arvcfSecux']) ) ) {
+				throw new Exception( 'به دلایل امنیتی ارسال پیام امکان پذیر نیست!' );
+			}
+
+			if( empty( $name ) || empty( $phone )|| empty( $subject ) || empty( $message ) ){
+				throw new Exception( 'فیلد های ضروری را تکمیل کنید!' );
+			}
+
+			if( ! empty( $email ) && ! is_email( $email ) ) {
+				throw new Exception( 'ایمیل وارد شده صحیح نمی‌باشد' );
+			}
+
+			$headers = ['Content-Type: text/html; charset=UTF-8'];
+			if( $email ) {
+				$headers[] = sprintf('Reply-To: %s <%s>', $name, $email);
+			}
+
+			ob_start();
+			get_template_part( 'parts/contactus', 'email' );
+			$mailbody = ob_get_clean();
+			$mailbody = str_replace('{{title}}', $subject, $mailbody);
+			$message = sprintf('<p>فرستنده: <strong>%s</strong></p><p>شماره تماس: <strong>%s</strong></p> %s', $name, $phone, wpautop($message) );
+			$mailbody = str_replace('{{content}}', $message, $mailbody);
+			$mailbody = str_replace('{{footer}}', sprintf('<p>در تاریخ <span dir="ltr">%s</span> با شناسه <span dir="ltr">%s</span></p>', current_time('Y-m-d H:i'), get_user_ip() ), $mailbody);
+			$sent = wp_mail( $atts['to'], $subject, $mailbody, $headers );
+			if( $sent ){
+				$output['sent'] = true;
+				$output['message'] = 'پیام شما باموفقیت ارسال شد.';
+			} else {
+				throw new Exception( 'ارسال پیام، شکست خورد! اشکال از سمت سایت می‌باشد' );
+			}
+		} catch (Exception $e) {
+			$output['message'] = $e->getMessage();
+		}
+		wp_send_json( $output );
+	}
 
 	//Plugins Compatibility
 	add_theme_support( 'rank-math-breadcrumbs' );
@@ -291,12 +345,12 @@ function enqueue_splidejs(){
 
 function header_class(){
 	$classes = array_unique( apply_filters( 'header_class', [] ) );
-	if( !empty( $classes ) ){
+	if( ! empty( $classes ) ){
 		printf(' class="%s"', esc_attr( implode(' ', $classes) ) );
 	}
 }
 
-function the_logo( $size ){
+function the_logo( $size, bool $link = true ){
 	if( has_custom_logo() ){
 		the_custom_logo();
 	} else {
@@ -307,55 +361,15 @@ function the_logo( $size ){
 			$width = $size[0];
 			$height = $size[1];
 		}
-		$logo = sprintf('<img src="%s" title="%s" class="custom-logo" width="%s" height="%s" />', THEMEURL.'assets/media/logo.svg', get_bloginfo('name'), esc_attr( $width ), esc_attr( $height ) );
-		$aria_current = is_front_page() && ! is_paged() ? ' aria-current="page"' : '';
-		printf('<a href="%1$s" class="custom-logo-link" rel="home"%2$s>%3$s</a>', esc_url( home_url( '/' ) ), $aria_current, $logo);
-	}
-}
 
-function arvand_contact_form_cb() {
-	$form_data = isset( $_POST['form_data'] ) ? json_decode( stripslashes( $_POST['form_data'] ), true) : [];
-	$output = [ 'sent' => false, 'message' => null ];
-	try {
-		$name		= isset( $form_data['arvcfName'] ) ? sanitize_text_field( $form_data['arvcfName'] ) : '';
-		$phone		= isset( $form_data['arvcfPhone'] ) ? sanitize_text_field( $form_data['arvcfPhone'] ) : '';
-		$subject	= isset( $form_data['arvcfSubject'] ) ? sanitize_text_field( $form_data['arvcfSubject'] ) : '';
-		$email		= isset( $form_data['arvcfEmail'] ) ? sanitize_email( $form_data['arvcfEmail'] ) : '';
-		$message	= isset( $form_data['arvcfMessage'] ) ? sanitize_textarea_field( $form_data['arvcfMessage'] ) : '';
-		
-		if( ! wp_verify_nonce( $form_data['arvand-contactform'], 'arvand-contactform' ) || ( isset($form_data['arvcfSecux']) && ! empty( $form_data['arvcfSecux']) ) ) {
-			throw new Exception( 'به دلایل امنیتی ارسال پیام امکان پذیر نیست!' );
-		}
-
-		if( empty( $name ) || empty( $phone )|| empty( $subject ) || empty( $message ) ){
-			throw new Exception( 'فیلد های ضروری را تکمیل کنید!' );
-		}
-
-		if( ! empty( $email ) && ! is_email( $email ) ) {
-			throw new Exception( 'ایمیل وارد شده صحیح نمی‌باشد' );
-		}
-
-		$headers = ['Content-Type: text/html; charset=UTF-8'];
-		if( $email ) {
-			$headers[] = sprintf('Reply-To: %s <%s>', $name, $email);
-		}
-
-		ob_start();
-		get_template_part( 'parts/contactus', 'email' );
-		$mailbody = ob_get_clean();
-		$mailbody = str_replace('{{title}}', $subject, $mailbody);
-		$message = sprintf('<p>فرستنده: <strong>%s</strong></p><p>شماره تماس: <strong>%s</strong></p> %s', $name, $phone, wpautop($message) );
-		$mailbody = str_replace('{{content}}', $message, $mailbody);
-		$mailbody = str_replace('{{footer}}', sprintf('<p>در تاریخ <span dir="ltr">%s</span> با شناسه <span dir="ltr">%s</span></p>', current_time('Y-m-d H:i'), get_user_ip() ), $mailbody);
-		$sent = wp_mail( $atts['to'], $subject, $mailbody, $headers );
-		if( $sent ){
-			$output['sent'] = true;
-			$output['message'] = 'پیام شما باموفقیت ارسال شد.';
+		$logo = sprintf('<img src="%s" title="%s" class="custom-logo" width="%s" height="%s" />', THEMEURL.'assets/media/logo.svg', get_bloginfo( 'name', 'display' ), esc_attr( $width ), esc_attr( $height ) );
+		if( $link ){
+			$aria_current = is_front_page() && ! is_paged() ? ' aria-current="page"' : '';
+			printf('<a href="%1$s" class="custom-logo-link" rel="home"%2$s>%3$s</a>', esc_url( home_url( '/' ) ), $aria_current, $logo);
 		} else {
-			throw new Exception( 'ارسال پیام، شکست خورد! اشکال از سمت سایت می‌باشد' );
+			echo $logo;
 		}
-	} catch (Exception $e) {
-		$output['message'] = $e->getMessage();
+		
 	}
-	wp_send_json( $output );
 }
+
