@@ -92,11 +92,8 @@ add_action( 'after_setup_theme', function(){
 			wp_dequeue_style('global-styles');
 		}
 
-		wp_register_style( 'splide', THEMEURL.'assets/libs/splide/splide-core.min.css', [], '4.1.3');
-		wp_register_script( 'splide', THEMEURL.'assets/libs/splide/splide.min.js', [], '4.1.3', [
-			'strategy'	=> 'defer',
-			'in_footer'	=> true,
-		]);
+		wp_register_style('splide', THEMEURL.'assets/libs/splide/splide-core.min.css', [], '4.1.3');
+		wp_register_script('splide', THEMEURL.'assets/libs/splide/splide.min.js', [], '4.1.3', ['strategy' => 'defer','in_footer' => true]);
 
 		if ( comments_open() ) wp_enqueue_script('comment-reply');
 
@@ -338,11 +335,6 @@ add_action( 'after_setup_theme', function(){
 });
 
 //------Theme Functions
-function enqueue_splidejs(){
-	wp_enqueue_style('splide');
-	wp_enqueue_script('splide');
-}
-
 function header_class( string|array $custom_class = '' ){
 	$classes = array_unique( apply_filters( 'header_class', (array) $custom_class ) );
 	if( ! empty( $classes ) ){
@@ -372,4 +364,3 @@ function the_logo( $size, bool $link = true ){
 		
 	}
 }
-

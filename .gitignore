@@ -13,5 +13,5 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-#css
+# Production Files
 assets/stylesheet.css

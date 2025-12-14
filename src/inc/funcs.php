@@ -57,7 +57,14 @@ if( ! function_exists('has_user_role') ) {
 
 if( ! function_exists('clsx') ) {
 	function clsx($condition, $true_class, $false_class = ''){
-		return $condition ? $true_class : $false_class;
+		return $condition ? esc_attr( $true_class ) : esc_attr( $false_class );
+	}
+}
+
+if( ! function_exists('wp_enqueue') ){
+	function wp_enqueue( string $handle ){
+		wp_enqueue_script($handle);
+		wp_enqueue_style($handle);
 	}
 }
 
@@ -313,44 +320,61 @@ if( ! function_exists('the_breadcrumbs') ){
 	}
 }
 
-if( ! function_exists('the_pagination') ){
-	function the_pagination( $args = [], $query = null ){
-		if( ! $query ) {
-			global $wp_query;
-			$query = $wp_query;
-		}
-
-		$big = 999999999;
-		$default = [
-			'add_args'		=> null,
-			'big'			=> str_replace( $big, '%#%', esc_url( get_pagenum_link( $big ) ) ),
+if ( ! function_exists( 'the_pagination' ) ) {
+	function the_pagination( array $args = [] ) {
+		global $wp_query;
+		$query = $args['query'] ?? $wp_query;
+		$big   = $args['big'] ?? 999999999;
+		$paged = $args['current'] ?? get_query_var( 'paged' );
+		$paged = max( 1, absint( $paged ) );
+		$base = str_replace( $big, '%#%', esc_url( get_pagenum_link( $big, false ) ) );
+		
+		$defaults = [
+			'type'			=> 'plain',
+			'add_args'		=> [],
 			'mid_size'		=> 1,
 			'end_size'		=> 2,
-			'add_fragment'	=> '',
-			'type'			=> 'plain',
-			'format'		=> '?paged=%#%',
+			'base'			=> $base,
 			'total'			=> $query->max_num_pages,
-			'current'		=> get_query_var('paged'),
-			'prev_text'		=> is_rtl() ? '<svg width="16" height="16"><use xlink:href="#icon-arrow-start"></use></svg>' : '<svg width="16" height="16"><use xlink:href="#icon-arrow-end"></use></svg>',
-			'next_text'		=> is_rtl() ? '<svg width="16" height="16"><use xlink:href="#icon-arrow-end"></use></svg>' : '<svg width="16" height="16"><use xlink:href="#icon-arrow-start"></use></svg>',
-			'before_tag'	=> '<nav class="pagination">',
+			'current'		=> $paged,
+			'prev_text'		=> sprintf('<span class="sr-only">%s</span>%s', esc_html__( 'Previous page' ), is_rtl() ? '&rarr;' : '&larr;'),
+			'next_text'		=> sprintf('<span class="sr-only">%s</span>%s', esc_html__( 'Next page' ), is_rtl() ? '&larr;' : '&rarr;'),
+			'before_tag'	=> '<nav class="%s" role="navigation" aria-label="%s">',
 			'after_tag'		=> '</nav>',
+			'aria_label'	=> esc_html__( 'Page navigation' ),
+			'class'			=> '',
+			'echo'			=> true,
 		];
-		$args = wp_parse_args( $args, $default );
+
+		$args = wp_parse_args( $args, $defaults );
+
+		if ( $args['total'] <= 1 ) {
+			return;
+		}
 
 		$before_tag = $args['before_tag'];
-		$after_tag = $args['after_tag'];
+		$after_tag  = $args['after_tag'];
+		$aria_label = $args['aria_label'];
+		$nav_class  = trim( 'pagination '.$args['class'] );
+		$nav_class	= array_filter( array_unique( explode(' ', $nav_class) ) );
 
-		unset($args['before_tag']);
-		unset($args['after_tag']);
+		$excluded_args = [ 'before_tag', 'after_tag', 'aria_label', 'class', 'query', 'echo' ];
+		$paginate_args = array_diff_key( $args, array_flip( $excluded_args ) );
 
-		if( $args['total'] > 1 ){
-			printf(
-				"%s\n\t%s\n%s", 
-				$before_tag,
-				paginate_links($args),
-				$after_tag
-			);
+		$pagination_html = paginate_links( $paginate_args );
+		
+		if ( empty( $pagination_html ) ) {
+			return;
+		}
+
+		$before_tag = sprintf( $before_tag, esc_attr( implode(' ', $nav_class) ), esc_attr( $aria_label ) );
+
+		$output = sprintf("%s\n\t%s\n%s", $before_tag, $pagination_html, $after_tag);
+
+		if ( $args['echo'] ) {
+			echo $output; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		} else {
+			return $output;
 		}
 	}
 }
