@@ -3,7 +3,7 @@
  * Core Functions
  *
  * @author 	Pouriya Amjadzadeh
- * @version 3.0.0
+ * @version 3.5.0
  * @package https://arvandec.com
  */
 
@@ -92,24 +92,39 @@ add_action( 'after_setup_theme', function(){
 			wp_dequeue_style('global-styles');
 		}
 
-		wp_register_style('splide', THEMEURL.'assets/libs/splide/splide-core.min.css', [], '4.1.3');
-		wp_register_script('splide', THEMEURL.'assets/libs/splide/splide.min.js', [], '4.1.3', ['strategy' => 'defer','in_footer' => true]);
+		wp_register_style( 'splide', THEMEURL.'assets/libs/splide/splide-core.min.css', [], '4.1.3');
+		wp_register_script( 'splide', THEMEURL.'assets/libs/splide/splide.min.js', [], '4.1.3', [
+			'strategy'	=> 'defer',
+			'in_footer'	=> true,
+		]);
 
 		if ( comments_open() ) wp_enqueue_script('comment-reply');
 
 		wp_enqueue_style( 'stylesheet', THEMEURL.'assets/stylesheet.css' );
 	}, 99 );
 
+	add_action( 'wp_head', function(){
+		//TODO:Preload Font
+		// printf(
+		// 	'<link rel="prefetch" as="font" href="%s" type="%s" crossorigin="anonymous">',
+		// 	THEMEURL .'assets/media/FONTNAME.woff2',
+		// 	'font/woff2',
+		// );
+		echo PHP_EOL;
+		// printf('<link rel="manifest" href="%s">', THEMEURL.'manifest.webmanifest');
+	}, 2);
+
 	add_filter( 'body_class', function( $classes ) {
 		$classes = [];
-		//Classes HERE
 		if( is_404() ) $classes[] = 'error404';
 		$classes[] = ( is_rtl() ) ? 'rtl' : 'ltr';
+
 		if( is_admin_bar_showing() ) $classes[] = 'admin_bar';
 		return $classes;
 	}, 99 );
 
 	add_filter('header_class', function( $classes ) {
+		$classes = [];
 		return $classes;
 	});
 
@@ -118,13 +133,12 @@ add_action( 'after_setup_theme', function(){
 		echo PHP_EOL;
 	}, 99);
 
-	add_action( 'wp_footer', function() {
+	add_action( 'wp_footer', function(){
 		printf('<script id="themejs" src="%s" data-ajax="%s" defer></script>', THEMEURL. 'assets/script.min.js', admin_url('admin-ajax.php') );
-		echo PHP_EOL;
 	}, 99);
 
 	register_nav_menus([
-		'primary'	=> __('Menu'),
+		'primary'		=> __('Menu'),
 	]);
 
 	//Archive and Loop
@@ -139,8 +153,8 @@ add_action( 'after_setup_theme', function(){
 			'name'			=> __('Sidebar'),
 			'before_widget'	=> '<section id="%1$s" class="widget %2$s">',
 			'after_widget'	=> '</section>',
-			'before_title'	=> '<h4 class="widget-title">',
-			'after_title'	=> '</h4>',
+			'before_title'	=> '<div role="heading" aria-level="4" class="text-lg mb-4 widget-title">',
+			'after_title'	=> '</div>',
 		]);
 	});
 	
@@ -148,7 +162,7 @@ add_action( 'after_setup_theme', function(){
 	add_filter( 'use_widgets_block_editor', '__return_false' );
 	add_filter( 'gutenberg_use_widgets_block_editor', '__return_false' );
 
-	//Add Custom Class Widgets
+	//Add Custom class and widget-content wrapper to widgets
 	add_filter('widget_form_callback', function( $instance, $widget ) {
 		printf('<p><label for="%1$s">CSS Classes</label><input id="%1$s" type="text" name="%2$s" dir="ltr" value="%3$s" class="widefat"></p>', $widget->get_field_id('classes'), $widget->get_field_name('classes'), ( isset($instance['classes']) ? $instance['classes'] : null ));
 		return $instance;
@@ -159,15 +173,65 @@ add_action( 'after_setup_theme', function(){
 	}, 10, 2);
 	add_filter( 'dynamic_sidebar_params', function( $params ) {
 		global $wp_registered_widgets;
-		$widget_id	= $params[0]['widget_id'];
-		$widget_obj	= $wp_registered_widgets[$widget_id];
-		$widget_opt	= get_option($widget_obj['callback'][0]->option_name);
-		$widget_num    = $widget_obj['params'][0]['number'];    
-		if ( isset($widget_opt[$widget_num]['classes']) && !empty($widget_opt[$widget_num]['classes']) ) {
-			$params[0]['before_widget'] = preg_replace( '/class="/', "class=\"{$widget_opt[$widget_num]['classes']} ", $params[0]['before_widget'], 1 );
+		$widget_id = $params[0]['widget_id'];
+	
+		if( isset($wp_registered_widgets[ $widget_id ]['callback'][0]) && is_object($wp_registered_widgets[ $widget_id ]['callback'][0]) ) {
+			$widget_obj = $wp_registered_widgets[ $widget_id ];
+			$widget_opt = get_option( $widget_obj['callback'][0]->option_name );
+			$widget_num = $widget_obj['params'][0]['number'] ?? 0;
+			
+			if (!empty($widget_opt[$widget_num]['classes'])) {
+				$params[0]['before_widget'] = preg_replace(
+					'/class="/',
+					"class=\"{$widget_opt[$widget_num]['classes']} ",
+					$params[0]['before_widget'],
+					1
+				);
+			}
 		}
+
+		$wrapper_class = 'widget-content';
+		$original_callback = $wp_registered_widgets[$widget_id]['callback'];
+		$wp_registered_widgets[$widget_id]['callback'] = function() use ($original_callback, $params, $wrapper_class) {
+			$args = $params[0];
+			ob_start();
+			call_user_func_array($original_callback, $params);
+			$widget_output = ob_get_clean();
+			if (empty(trim($widget_output))) {
+				return;
+			}
+			$before_title = $args['before_title'];
+			$after_title = $args['after_title'];
+			$after_widget = $args['after_widget'];
+			
+			$has_title = !empty($before_title) && !empty($after_title) && 
+						str_contains($widget_output, $before_title) && 
+						str_contains($widget_output, $after_title);
+			
+			$wrapper_open = '<div class="' . esc_attr($wrapper_class) . '">';
+			$wrapper_close = '</div>';
+			
+			if ($has_title) {
+				$insert_after = $after_title;
+			} else {
+				$insert_after = $args['before_widget'];
+			}
+			
+			$pos = strpos($widget_output, $insert_after);
+			if ($pos !== false) {
+				$pos += strlen($insert_after);
+				$widget_output = substr_replace($widget_output, $wrapper_open, $pos, 0);
+			}
+			
+			$pos = strrpos($widget_output, $after_widget);
+			if ($pos !== false) {
+				$widget_output = substr_replace($widget_output, $wrapper_close, $pos, 0);
+			}
+			echo $widget_output;
+		};
+
 		return $params;
-	});
+	}, 999);
 
 	//Newest Users Registered First
 	add_action( 'pre_get_users', function($query){
@@ -200,10 +264,10 @@ add_action( 'after_setup_theme', function(){
 			}
 		}
 
-		$avatar_src = '<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 24 24"><path fill="#fafafa" d="M0 0h24v24H0z"/><path fill="#4d1120" d="M12 5.5c-1.7 0-3 1.3-3 3s1.3 3.5 3 3.5 3-2 3-3.6-1.3-2.9-3-2.9m4.4 13.2c1-.7 1.3-2 .6-3a6 6 0 0 0-5-2.7 6 6 0 0 0-5 2.6c-.7 1-.4 2.4.6 3A8 8 0 0 0 12 20a8 8 0 0 0 4.4-1.3"/></svg>';
+		$avatar_src = '<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 24 24"><path fill="#e0f0fe" d="M0 0h24v24H0z"/><path fill="#0b436f" d="M12 5.5c-1.7 0-3 1.3-3 3s1.3 3.5 3 3.5 3-2 3-3.6-1.3-2.9-3-2.9m4.4 13.2c1-.7 1.3-2 .6-3a6 6 0 0 0-5-2.7 6 6 0 0 0-5 2.6c-.7 1-.4 2.4.6 3A8 8 0 0 0 12 20a8 8 0 0 0 4.4-1.3"/></svg>';
 		$avatar_src = 'data:image/svg+xml;base64,'.base64_encode( $avatar_src );
-
-		//TODO: if want localavatar
+		
+		//TODO:: if want localavatar
 		// if( $user && get_user_meta( $user->ID, 'localavatar', true ) ){
 		// 	$custom_avatar_id = absint( get_user_meta( $user->ID, 'localavatar', true ) );
 		// 	if( $custom_avatar_id ) {
@@ -214,24 +278,25 @@ add_action( 'after_setup_theme', function(){
 		// 	}
 		// }
 
-		$class = $args['class'] ?? '';
 		$attrs = [
 			'src'           => $avatar_src,
 			'alt'           => $args['alt'] ?? '',
 			'width'         => $args['width'] ?? '',
 			'height'        => $args['height'] ?? '',
-			'class'         => is_array( $class ) ? $class : [ $class ],
+			'class'         => is_array($args['class'] ?? '') ? $args['class'] : [$args['class'] ?? ''],
 			'loading'       => $args['loading'] ?? 'lazy',
 			'fetchpriority' => $args['fetchpriority'] ?? '',
 			'decoding'      => $args['decoding'] ?? '',
 		];
 
 		$attrs['class'] = array_merge( ["avatar", "avatar-{$args['size']}"], $attrs['class']);
-		$attrs['class'] = implode(' ', array_filter( $attrs['class'] ));
+		$attrs['class'] = implode(' ', array_filter($attrs['class']));
 
-		if( isset( $args['extra_attr'] ) && is_array( $args['extra_attr'] ) ) {
-			$extra_attrs = array_filter($args['extra_attr'], fn( $value ) => $value !== null);
-			$attrs = array_merge( $attrs, $extra_attrs );
+		if( isset($args['extra_attr']) && is_array($args['extra_attr']) ) {
+			$extra_attrs = array_filter($args['extra_attr'], function($value) {
+				return $value !== null;
+			});
+			$attrs = array_merge($attrs, $extra_attrs);
 		}
 
 		$html_attrs = implode(' ', array_filter(array_map(
@@ -279,13 +344,13 @@ add_action( 'after_setup_theme', function(){
 	add_action('wp_ajax_nopriv_arvand_contact_form', 'arvand_contact_form_cb');
 	function arvand_contact_form_cb() {
 		$form_data = isset( $_POST['form_data'] ) ? json_decode( stripslashes( $_POST['form_data'] ), true) : [];
-		$output = [ 'success' => false, 'message' => null ];
+		$output = [ 'sent' => false, 'message' => null ];
 		try {
-			$name		= sanitize_text_field( $form_data['arvcfName'] ?? '' );
-			$phone		= sanitize_text_field( $form_data['arvcfPhone'] ?? '' );
-			$email		= sanitize_email( $form_data['arvcfEmail'] ?? '' );
-			$subject	= sanitize_text_field( $form_data['arvcfSubject'] ?? '' );
-			$message	= sanitize_textarea_field( $form_data['arvcfMessage'] ?? '' );
+			$name		= isset( $form_data['arvcfName'] ) ? sanitize_text_field( $form_data['arvcfName'] ) : '';
+			$phone		= isset( $form_data['arvcfPhone'] ) ? sanitize_text_field( $form_data['arvcfPhone'] ) : '';
+			$subject	= isset( $form_data['arvcfSubject'] ) ? sanitize_text_field( $form_data['arvcfSubject'] ) : '';
+			$email		= isset( $form_data['arvcfEmail'] ) ? sanitize_email( $form_data['arvcfEmail'] ) : '';
+			$message	= isset( $form_data['arvcfMessage'] ) ? sanitize_textarea_field( $form_data['arvcfMessage'] ) : '';
 			
 			if( ! wp_verify_nonce( $form_data['arvand-contactform'], 'arvand-contactform' ) || ( isset($form_data['arvcfSecux']) && ! empty( $form_data['arvcfSecux']) ) ) {
 				throw new Exception( 'به دلایل امنیتی ارسال پیام امکان پذیر نیست!' );
@@ -313,7 +378,7 @@ add_action( 'after_setup_theme', function(){
 			$mailbody = str_replace('{{footer}}', sprintf('<p>در تاریخ <span dir="ltr">%s</span> با شناسه <span dir="ltr">%s</span></p>', current_time('Y-m-d H:i'), get_user_ip() ), $mailbody);
 			$sent = wp_mail( $atts['to'], $subject, $mailbody, $headers );
 			if( $sent ){
-				$output['success'] = true;
+				$output['sent'] = true;
 				$output['message'] = 'پیام شما باموفقیت ارسال شد.';
 			} else {
 				throw new Exception( 'ارسال پیام، شکست خورد! اشکال از سمت سایت می‌باشد' );
@@ -326,41 +391,30 @@ add_action( 'after_setup_theme', function(){
 
 	//Plugins Compatibility
 	add_theme_support( 'rank-math-breadcrumbs' );
-
-	//Remove WP ParsiDate Dashobard
-	if( function_exists('wpp_add_our_dashboard_primary_widget') ){
-		remove_action( 'admin_init', 'wpp_add_our_dashboard_primary_widget', 1 );
-	}
-
+	
 });
 
 //------Theme Functions
-function header_class( string|array $custom_class = '' ){
-	$classes = array_unique( apply_filters( 'header_class', (array) $custom_class ) );
-	if( ! empty( $classes ) ){
+function header_class(){
+	$classes = array_unique( apply_filters( 'header_class', [] ) );
+	if( !empty( $classes ) ){
 		printf(' class="%s"', esc_attr( implode(' ', $classes) ) );
 	}
 }
 
-function the_logo( $size, bool $link = true ){
+function the_logo( $size = 140 ){
 	if( has_custom_logo() ){
 		the_custom_logo();
 	} else {
-		if( is_numeric( $isze ) ){
+		if( is_numeric( $size ) ){
 			$width = $size;
-			$height = $size * 0.125;
+			$height = $size * 0.5;
 		} elseif( is_array( $size ) ){
 			$width = $size[0];
 			$height = $size[1];
 		}
-
-		$logo = sprintf('<img src="%s" title="%s" class="custom-logo" width="%s" height="%s" />', THEMEURL.'assets/media/logo.svg', get_bloginfo( 'name', 'display' ), esc_attr( $width ), esc_attr( $height ) );
-		if( $link ){
-			$aria_current = is_front_page() && ! is_paged() ? ' aria-current="page"' : '';
-			printf('<a href="%1$s" class="custom-logo-link" rel="home"%2$s>%3$s</a>', esc_url( home_url( '/' ) ), $aria_current, $logo);
-		} else {
-			echo $logo;
-		}
-		
+		$logo = sprintf('<img src="%s" title="%s" class="custom-logo" width="%s" height="%s" />', THEMEURL.'assets/media/logo.png', get_bloginfo('name'), esc_attr( $width ), esc_attr( $height ) );
+		$aria_current = is_front_page() && ! is_paged() ? ' aria-current="page"' : '';
+		printf('<a href="%1$s" class="custom-logo-link" rel="home"%2$s>%3$s</a>', esc_url( home_url( '/' ) ), $aria_current, $logo);
 	}
 }
