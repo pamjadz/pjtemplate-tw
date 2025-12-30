@@ -320,7 +320,7 @@ add_action( 'after_setup_theme', function(){
 	} , 10, 3);
 
 	//includes
-	foreach (glob(THEMEDIR.'src/inc/*.php') as $file) require_once $file;
+	foreach (glob(THEMEDIR.'src/*.php') as $file) require_once $file;
 
 	//Arvand Panel Style
 	add_action( 'admin_enqueue_scripts',function(){
