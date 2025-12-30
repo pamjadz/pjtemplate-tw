@@ -43,7 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 });
 
-
 if( typeof jQuery !== 'undefined' ){
 	jQuery(document).ready(function($){
 		//Login

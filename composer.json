@@ -1,0 +1,12 @@
+{
+	"type": "wordpress-theme",
+	"config": {
+		"optimize-autoloader": true,
+		"allow-plugins": {
+			"composer/installers": true
+		}
+    },
+	"require": {
+		"composer/installers": "^2.0"
+	}
+}

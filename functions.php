@@ -9,6 +9,9 @@
 
 defined('ABSPATH') || exit;
 
+// Autoload Composer
+// require_once __DIR__ . '/vendor/autoload.php';
+
 //TODO: Renmate txtdmn
 define( 'txtdmn', 'txtdmn' );
 define( 'THEMEDIR', trailingslashit( get_template_directory() ) );

@@ -377,20 +377,49 @@ add_filter('woocommerce_catalog_orderby', function($catalog_orders) {
  */
 add_filter('posts_clauses', function($clauses, $query) {
 	global $wpdb;
+
 	if (is_admin() || !$query->is_main_query() || (!is_shop() && !is_product_taxonomy())) {
 		return $clauses;
 	}
-	
+
 	if (strpos($clauses['join'], 'stock_status_meta') !== false) {
 		return $clauses;
 	}
+
+	$clauses['join'] .= " LEFT JOIN {$wpdb->postmeta} AS stock_status_meta ON ({$wpdb->posts}.ID = stock_status_meta.post_id AND stock_status_meta.meta_key = '_stock_status')";
 	
-	$clauses['join'] .= $wpdb->prepare(
-		" LEFT JOIN {$wpdb->postmeta} AS stock_status_meta ON ({$wpdb->posts}.ID = stock_status_meta.post_id AND stock_status_meta.meta_key = %s)",
-		'_stock_status'
-	);
+	$clauses['join'] .= "
+		LEFT JOIN (
+			SELECT 
+				post_parent, 
+				MIN(
+					FIELD(
+						variation_stock_meta.meta_value, 
+						'instock', 
+						'onbackorder', 
+						'outofstock'
+					)
+				) AS best_stock_order
+			FROM 
+				{$wpdb->posts} AS variations
+			INNER JOIN 
+				{$wpdb->postmeta} AS variation_stock_meta ON (variations.ID = variation_stock_meta.post_id AND variation_stock_meta.meta_key = '_stock_status')
+			WHERE 
+				variations.post_type = 'product_variation'
+			GROUP BY 
+				post_parent
+		) AS variation_stock_status ON ({$wpdb->posts}.ID = variation_stock_status.post_parent)
+	";
 	
-	$clauses['orderby'] = "FIELD(stock_status_meta.meta_value, 'instock', 'onbackorder', 'outofstock') ASC, " . $clauses['orderby'];
+
+	$stock_status_sort_field = "
+		COALESCE(
+			variation_stock_status.best_stock_order,
+			FIELD(stock_status_meta.meta_value, 'instock', 'onbackorder', 'outofstock')
+		)
+	";
+
+	$clauses['orderby'] = $stock_status_sort_field . " ASC, " . $clauses['orderby'];
 	
 	return $clauses;
 }, 20, 2);
